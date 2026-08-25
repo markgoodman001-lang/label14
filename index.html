@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Natasha’s Law labels for food packed on site — Label14</title>
+  <meta name="description" content="Format ingredients labels for food packed on site — stalls, sandwiches, meal-prep, cakes and deli pots. Emphasise the 14 major allergens. A PPDS formatter — not legal advice.">
+  <meta name="robots" content="index, follow">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='6' width='26' height='20' rx='2' fill='%231A1714'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-family='Georgia,serif' font-size='13' font-weight='700' fill='%23F4EFE6'%3E14%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#composer">Skip to recipe</a>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">14</span>
+        <div>
+          <p class="brand-name">Label14</p>
+          <p class="brand-meta">England, Wales &amp; Northern Ireland · PPDS formatter</p>
+        </div>
+      </div>
+      <nav class="header-nav" aria-label="On this page">
+        <a href="#how">How this works</a>
+        <a href="#fourteen">14 allergens</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Stalls · sandwiches · meal-prep · cakes · deli pots</p>
+      <h1>Natasha’s Law labels for food packed on site</h1>
+      <p class="lede">Paste a recipe. Get a print-ready ingredients label with the 14 major allergens emphasised. For market stalls, sandwiches, meal-prep, cakes, deli pots and bakers packing food on site.</p>
+    </div>
+  </section>
+
+  <div class="disclaimer-band" role="note">
+    <div class="wrap">
+      <strong>This is a formatter, not a laboratory and not legal advice.</strong>
+      Label14 does not test food, does not sign off labels, and is not an EHO approval.
+      You must confirm every ingredient against your supplier specifications.
+      Labels do not cover cross-contamination.
+    </div>
+  </div>
+
+  <main class="wrap workspace" id="composer">
+    <form id="recipe-form" autocomplete="off" novalidate>
+      <section class="panel" aria-labelledby="recipe-heading">
+        <header class="panel-head">
+          <div>
+            <h2 id="recipe-heading">Recipe</h2>
+            <p class="panel-sub">Stays in this browser. Nothing is sent anywhere.</p>
+          </div>
+          <div class="saved-slot" id="saved-slot"></div>
+        </header>
+
+        <div class="grid-2">
+          <label class="field">
+            <span>Product name</span>
+            <input id="product-name" name="productName" type="text" maxlength="80" required placeholder="Lemon drizzle loaf">
+          </label>
+          <label class="field">
+            <span>Business name</span>
+            <input id="business-name" name="businessName" type="text" maxlength="80" placeholder="Northgate Bakery">
+          </label>
+        </div>
+
+        <div class="field">
+          <span>Paste a recipe</span>
+          <textarea id="paste-box" rows="5" placeholder="200g unsalted butter&#10;200g caster sugar&#10;3 large eggs&#10;200g self-raising flour&#10;1 lemon, zest and juice"></textarea>
+          <div class="row-actions">
+            <button type="button" class="btn btn-quiet" id="parse-paste">Add pasted lines</button>
+            <button type="button" class="btn btn-ghost" id="load-sample">Load sample carrot cake</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span>Ingredients <em>(name + grams — listed heaviest first on the label)</em></span>
+          <div class="ing-table" id="ing-table" role="group" aria-label="Ingredients"></div>
+          <button type="button" class="btn btn-quiet" id="add-ing">Add ingredient</button>
+        </div>
+
+        <label class="field">
+          <span>May contain <em>(optional — only after your own cross-contamination check)</em></span>
+          <input id="may-contain" name="mayContain" type="text" maxlength="160" placeholder="May contain nuts">
+        </label>
+
+        <div class="grid-3">
+          <label class="field">
+            <span>Pack date</span>
+            <input id="pack-date" name="packDate" type="date">
+          </label>
+          <label class="field">
+            <span>Date type</span>
+            <select id="life-type" name="lifeType">
+              <option value="use-by">Use by</option>
+              <option value="best-before">Best before</option>
+            </select>
+          </label>
+          <label class="field">
+            <span id="life-label">Use by</span>
+            <input id="life-date" name="lifeDate" type="date">
+          </label>
+        </div>
+
+        <label class="field field-narrow">
+          <span>Batch <em>(optional)</em></span>
+          <input id="batch" name="batch" type="text" maxlength="40" placeholder="B23-081">
+        </label>
+      </section>
+    </form>
+
+    <aside class="preview-col" aria-labelledby="preview-heading">
+      <section class="panel preview-panel">
+        <header class="panel-head">
+          <div>
+            <h2 id="preview-heading">Label preview</h2>
+            <p class="panel-sub">What you print is what you confirm below.</p>
+          </div>
+          <div class="layout-toggle" role="group" aria-label="Print layout">
+            <button type="button" class="seg is-on" data-layout="a6" id="layout-a6">A6 cake box</button>
+            <button type="button" class="seg" data-layout="avery" id="layout-avery">Avery L7160</button>
+          </div>
+        </header>
+
+        <div class="preview-stage" id="preview-stage">
+          <div class="label-card" id="label-card" data-layout="a6">
+            <div class="label-face" id="label-face"></div>
+          </div>
+        </div>
+        <p class="overflow-note" id="overflow-note" hidden>This recipe is long for the chosen label size. Shorten names, or use the A6 cake-box layout.</p>
+
+        <div class="avery-options" id="avery-options" hidden>
+          <label class="field field-inline">
+            <span>Start at label</span>
+            <input id="avery-start" type="number" min="1" max="21" value="1">
+            <span class="hint">1–21 on a 3 × 7 sheet. Remaining labels stay blank.</span>
+          </label>
+        </div>
+
+        <section class="confirm-block" aria-labelledby="confirm-heading">
+          <h3 id="confirm-heading">Confirm before print</h3>
+          <p class="confirm-intro">Detected allergens stay off the printed label’s emphasis until you tick them. Unknown or blended lines must be acknowledged.</p>
+          <div id="confirm-list"></div>
+          <p class="print-lock" id="print-lock">Print is locked until every detected allergen is confirmed and every flagged line is acknowledged.</p>
+          <div class="print-actions">
+            <button type="button" class="btn btn-primary" id="print-btn" disabled>Print / Save PDF</button>
+            <p class="print-tip">In the print dialog choose <strong>Save as PDF</strong> if you want a file. Set margins to <strong>None</strong> and scale to <strong>100%</strong> / Actual size.</p>
+          </div>
+        </section>
+      </section>
+    </aside>
+  </main>
+
+  <section class="wrap info-grid" id="how">
+    <article class="panel info-card">
+      <h2>How this works</h2>
+      <ol class="steps">
+        <li>Enter the product, your trading name, and each ingredient with a weight.</li>
+        <li>Label14 sorts the list heaviest first and emphasises names it recognises from the UK’s 14 major allergens.</li>
+        <li>It will not guess a blend. “Spice mix”, “seasoning” and similar lines are flagged for you to open the spec.</li>
+        <li>Tick each detected allergen only after you have checked the supplier specification.</li>
+        <li>Print a cake-box (A6) label or an Avery L7160-style 63.5 × 38.1&nbsp;mm sheet from the browser.</li>
+      </ol>
+      <p class="foot-note">Recipes are stored in this browser only (localStorage), up to 3 in the free v1. A paid unlock for more saved recipes is planned. There is no checkout in this version.</p>
+    </article>
+    <article class="panel info-card" id="fourteen">
+      <h2>The 14 major allergens</h2>
+      <p class="panel-sub">From Food Standards Agency guidance. Only these must be emphasised as allergens under the rules. Other ingredients can still cause reactions — they are simply not on this statutory list.</p>
+      <ul class="allergen-ref" id="allergen-ref"></ul>
+      <p class="foot-note">Sources: FSA technical guidance on food allergen labelling; FSA allergen labelling for food manufacturers; Annex II of assimilated Regulation (EU) No. 1169/2011.</p>
+    </article>
+  </section>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p><strong>Label14</strong> formats the ingredients you type. You remain responsible for the food, the specification check, and the printed label. Not legal advice. Does not cover cross-contamination. Does not claim to be compliant, certified, or EHO approved.</p>
+      <p>Written against FSA / GOV.UK PPDS guidance for England, Wales and Northern Ireland. If you trade in Scotland, read the Food Standards Scotland PPDS pages as well.</p>
+      <p class="footer-quiet">v1 prototype · Works offline in this browser · No accounts · No analytics</p>
+    </div>
+  </footer>
+
+  <!-- Print surfaces (hidden on screen) -->
+  <div id="print-root" class="print-root" aria-hidden="true">
+    <div class="print-a6" id="print-a6"></div>
+    <div class="print-avery" id="print-avery"></div>
+  </div>
+
+  <script src="allergens.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
