@@ -287,6 +287,97 @@
     };
   }
 
+
+  function htmlEmphasisToListingPlain(html) {
+    return String(html || "")
+      .replace(/<strong>(.*?)<\/strong>/gi, function (_, inner) {
+        return String(inner).toUpperCase();
+      })
+      .replace(/<[^>]+>/g, "")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .trim();
+  }
+
+  /** Plain ingredients line for distance-sale listings (allergens in CAPITALS). Uses detected allergens, not print-confirm state. */
+  function listingIngredientsText() {
+    var items = sortedIngredients();
+    if (!items.length) return "";
+    var lines = items.map(function (ing) {
+      var html;
+      if (ing.analysis && ing.analysis.allergens && ing.analysis.allergens.length) {
+        html = ing.analysis.html;
+      } else {
+        html = A.escapeHtml(A.prettyName(ing.name));
+      }
+      return htmlEmphasisToListingPlain(html);
+    });
+    return "Ingredients: " + lines.join(", ") + ".";
+  }
+
+  function setListingCopyStatus(msg) {
+    if (!els.listingCopyStatus) return;
+    els.listingCopyStatus.textContent = msg || "";
+  }
+
+  function copyListingIngredients() {
+    var text = listingIngredientsText();
+    if (!text) {
+      setListingCopyStatus("Add ingredients first.");
+      return;
+    }
+    var btn = els.copyListingBtn;
+    var done = function () {
+      if (btn) {
+        btn.textContent = "Copied";
+        setTimeout(function () {
+          btn.textContent = "Copy ingredients for listing";
+        }, 2000);
+      }
+      setListingCopyStatus("Copied — paste into your listing.");
+    };
+    var fail = function () {
+      setListingCopyStatus("Could not copy automatically. Select and copy from the label text.");
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(function () {
+        // fallback
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          if (document.execCommand("copy")) done();
+          else fail();
+        } catch (e) {
+          fail();
+        }
+        document.body.removeChild(ta);
+      });
+    } else {
+      var ta2 = document.createElement("textarea");
+      ta2.value = text;
+      ta2.setAttribute("readonly", "");
+      ta2.style.position = "fixed";
+      ta2.style.left = "-9999px";
+      document.body.appendChild(ta2);
+      ta2.select();
+      try {
+        if (document.execCommand("copy")) done();
+        else fail();
+      } catch (e2) {
+        fail();
+      }
+      document.body.removeChild(ta2);
+    }
+  }
+
   function labelInnerHtml(model, compact) {
     var parts = [];
     parts.push('<p class="label-kicker">Ingredients label</p>');
@@ -452,6 +543,9 @@
     renderPrint(model);
     var ok = canPrint(model);
     els.printBtn.disabled = !ok;
+    if (els.copyListingBtn) {
+      els.copyListingBtn.disabled = !labelModel().hasIngredients;
+    }
     els.printLock.hidden = ok;
     document.getElementById("layout-a6").classList.toggle("is-on", state.layout === "a6");
     document.getElementById("layout-avery").classList.toggle("is-on", state.layout === "avery");
@@ -563,6 +657,8 @@
     els.averyOptions = $("avery-options");
     els.confirmList = $("confirm-list");
     els.printBtn = $("print-btn");
+    els.copyListingBtn = $("copy-listing-btn");
+    els.listingCopyStatus = $("listing-copy-status");
     els.printLock = $("print-lock");
     els.savedSlot = $("saved-slot");
     els.printA6 = $("print-a6");
@@ -585,6 +681,10 @@
     });
 
     $("load-sample").addEventListener("click", loadSample);
+
+    if (els.copyListingBtn) {
+      els.copyListingBtn.addEventListener("click", copyListingIngredients);
+    }
     $("add-ing").addEventListener("click", function () {
       collectFromRows();
       state.ingredients.push(blankIng());
@@ -688,10 +788,464 @@
     }).join("");
   }
 
+  function clearForDemo() {
+    try { sessionStorage.removeItem("label14.draft.v1"); } catch (e) {}
+    state.editingId = null;
+    state.confirmed = {};
+    state.acknowledged = {};
+    state.ingredients = [blankIng(), blankIng(), blankIng()];
+    els.productName.value = "";
+    els.businessName.value = "";
+    els.pasteBox.value = "";
+    els.mayContain.value = "";
+    els.packDate.value = todayISO();
+    els.lifeType.value = "best-before";
+    els.lifeDate.value = "";
+    els.batch.value = "";
+    syncLifeLabel();
+    renderIngredients();
+    renderSaved();
+    renderAll();
+    var recipe = $("composer") || $("product-name");
+    if (recipe && recipe.scrollIntoView) recipe.scrollIntoView({ block: "center", behavior: "instant" });
+  }
+
+  function confirmAllForDemo() {
+    var model = labelModel();
+    (model.allergens || []).forEach(function (al) {
+      state.confirmed[al.id] = true;
+    });
+    var g = model.flagGroups || { compounds: [], unknowns: [], softs: [] };
+    (g.compounds || []).forEach(function (f) {
+      state.acknowledged[f.key] = true;
+    });
+    if ((g.unknowns || []).length) state.acknowledged.unknowns = true;
+    renderAll();
+    els.confirmList.querySelectorAll("input[data-confirm]").forEach(function (el) {
+      el.checked = true;
+      state.confirmed[el.getAttribute("data-confirm")] = true;
+    });
+    els.confirmList.querySelectorAll("input[data-ack]").forEach(function (el) {
+      el.checked = true;
+      state.acknowledged[el.getAttribute("data-ack")] = true;
+    });
+    renderAll();
+    var preview = $("composer") || $("label-card");
+    if (preview && preview.scrollIntoView) preview.scrollIntoView({ block: "center", behavior: "instant" });
+  }
+
+  function runListingDemo() {
+    clearForDemo();
+    setTimeout(function () {
+      loadSample();
+      var preview = $("composer") || $("label-card");
+      if (preview && preview.scrollIntoView) preview.scrollIntoView({ block: "center", behavior: "instant" });
+    }, 1800);
+    setTimeout(function () {
+      confirmAllForDemo();
+    }, 3800);
+  }
+
+  var VIDEO1_RECIPE = [
+    "200g unsalted butter",
+    "200g caster sugar",
+    "3 large eggs",
+    "200g self-raising flour",
+    "1 lemon, zest and juice"
+  ].join("\n");
+
+  function applyVideo1Names() {
+    els.productName.value = "Lemon drizzle loaf";
+    els.businessName.value = "Northgate Bakery";
+    els.lifeType.value = "use-by";
+    els.mayContain.value = "";
+    els.batch.value = "";
+    syncLifeLabel();
+  }
+
+  function scrollComposer() {
+    var recipe = $("composer") || $("product-name");
+    if (recipe && recipe.scrollIntoView) recipe.scrollIntoView({ block: "start", behavior: "instant" });
+  }
+
+  function parsePasteClick() {
+    var btn = $("parse-paste");
+    if (btn) btn.click();
+  }
+
+  /** Local-only capture helper: ?demo=video1[&step=ready|paste|done|confirmed][&hl=1|confirms]
+   *  step=ready      names filled, empty paste, empty ingredients
+   *  step=paste      names + recipe in paste box (not yet added)
+   *  step=done       after Add pasted lines (ingredients on label; confirms unchecked)
+   *  step=confirmed  done + all allergen confirms / acks checked
+   *  hl=1            soft amber rings on Add pasted lines + Label preview
+   *  hl=confirms     soft amber rings on allergen / unknown confirm boxes (beat 6)
+   *  no step         timed auto: clear → names → paste → Add pasted lines
+   */
+  function applyVideo1CaptureChrome() {
+    document.documentElement.classList.add("video1-capture");
+    var style = document.getElementById("video1-capture-style");
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "video1-capture-style";
+      style.textContent = [
+        "html.video1-capture .site-header,",
+        "html.video1-capture .hero,",
+        "html.video1-capture .disclaimer-band,",
+        "html.video1-capture .info-grid,",
+        "html.video1-capture .site-footer,",
+        "html.video1-capture .skip { display:none !important; }",
+        "html.video1-capture body { background:#F4EFE6; }",
+        "html.video1-capture .workspace { padding-top:20px; padding-bottom:20px; }",
+        "html.video1-capture .video1-hl {",
+        "  outline: 3px solid rgba(196,146,74,.72);",
+        "  outline-offset: 6px;",
+        "  border-radius: 12px;",
+        "  box-shadow: 0 0 0 10px rgba(244,231,196,.55), 0 8px 24px rgba(196,146,74,.18);",
+        "  position: relative;",
+        "  z-index: 2;",
+        "}",
+        "html.video1-capture #parse-paste.video1-hl {",
+        "  outline-offset: 5px;",
+        "  border-radius: 10px;",
+        "  box-shadow: 0 0 0 8px rgba(244,231,196,.6), 0 4px 14px rgba(196,146,74,.2);",
+        "}",
+        "html.video1-capture #preview-stage.video1-hl {",
+        "  outline: 3px solid rgba(196,146,74,.8);",
+        "  outline-offset: 8px;",
+        "  border-radius: 14px;",
+        "  box-shadow: 0 0 0 12px rgba(244,231,196,.7), 0 10px 28px rgba(196,146,74,.22);",
+        "  background: rgba(255,252,245,.35);",
+        "}",
+        "html.video1-capture .confirm-item.video1-hl {",
+        "  outline: 3px solid rgba(196,146,74,.88);",
+        "  outline-offset: 4px;",
+        "  border-radius: 10px;",
+        "  box-shadow: 0 0 0 8px rgba(244,231,196,.72), 0 8px 20px rgba(196,146,74,.22);",
+        "  position: relative;",
+        "  z-index: 2;",
+        "}",
+        "html.video1-capture.video1-full .wrap { width: calc(100% - 28px); }",
+        "html.video1-capture.video1-full .workspace { padding: 10px 0 6px; gap: 14px; }",
+        "html.video1-capture.video1-full .preview-col { position: static; top: auto; }",
+        "html.video1-capture.video1-full .panel { padding: 12px 14px 12px; }",
+        "html.video1-capture.video1-full .panel-head { margin-bottom: 8px; }",
+        "html.video1-capture.video1-full .field { margin-bottom: 8px; }",
+        "html.video1-capture.video1-full textarea { min-height: 74px; }",
+        "html.video1-capture.video1-full .preview-stage { min-height: 188px; padding: 10px 10px 12px; }",
+        "html.video1-capture.video1-full .label-card[data-layout=\"a6\"] { width: min(100%, 200px); }",
+        "html.video1-capture.video1-full .confirm-block { margin-top: 10px; padding-top: 10px; }",
+        "html.video1-capture.video1-full .confirm-item { padding: 6px 9px; margin: 8px 0; font-size: 13px; }",
+        "html.video1-capture.video1-full .confirm-intro, html.video1-capture.video1-full .print-lock { font-size: 12.5px; margin: 6px 0 0; }",
+        "html.video1-capture.video1-full .print-actions { margin-top: 8px; }",
+        "html.video1-capture.video1-full .paid-note,",
+        "html.video1-capture.video1-full .print-tip { display: none !important; }",
+        "html.video1-capture.video1-full .ing-table { gap: 6px; margin-bottom: 6px; }"
+      ].join("\n");
+      document.head.appendChild(style);
+    }
+  }
+
+  function applyVideo1Highlights(hl) {
+    if (!hl) return;
+    var mode = String(hl).toLowerCase();
+    if (mode === "confirms" || mode === "confirm" || mode === "2") {
+      document.documentElement.classList.add("video1-full");
+      document.querySelectorAll("#confirm-list .confirm-item").forEach(function (el) {
+        el.classList.add("video1-hl");
+      });
+      return;
+    }
+    var btn = $("parse-paste");
+    var preview = $("preview-stage") || document.querySelector(".label-card") || document.querySelector(".preview-panel");
+    if (btn) btn.classList.add("video1-hl");
+    if (preview) preview.classList.add("video1-hl");
+  }
+
+  function runVideo1Demo(step, hl) {
+    applyVideo1CaptureChrome();
+    clearForDemo();
+    applyVideo1Names();
+    renderAll();
+    scrollComposer();
+
+    if (step === "ready") {
+      els.pasteBox.value = "";
+      els.pasteBox.setAttribute("placeholder", "");
+      renderAll();
+      applyVideo1Highlights(hl);
+      return;
+    }
+    if (step === "paste") {
+      els.pasteBox.value = VIDEO1_RECIPE;
+      renderAll();
+      if (els.pasteBox && els.pasteBox.scrollIntoView) els.pasteBox.scrollIntoView({ block: "center", behavior: "instant" });
+      applyVideo1Highlights(hl);
+      return;
+    }
+    if (step === "done") {
+      els.pasteBox.value = VIDEO1_RECIPE;
+      parsePasteClick();
+      applyVideo1Names();
+      renderAll();
+      window.scrollTo(0, 0);
+      scrollComposer();
+      applyVideo1Highlights(hl);
+      return;
+    }
+    if (step === "confirmed") {
+      els.pasteBox.value = VIDEO1_RECIPE;
+      parsePasteClick();
+      confirmAllForDemo();
+      var preview = document.querySelector(".preview-panel") || $("confirm-list");
+      if (preview && preview.scrollIntoView) preview.scrollIntoView({ block: "start", behavior: "instant" });
+      applyVideo1Highlights(hl);
+      return;
+    }
+
+    // Timed auto sequence for short screen capture (~8s)
+    setTimeout(function () {
+      applyVideo1Names();
+      renderAll();
+      scrollComposer();
+    }, 400);
+    setTimeout(function () {
+      els.pasteBox.value = VIDEO1_RECIPE;
+      els.pasteBox.focus();
+      scrollComposer();
+    }, 1600);
+    setTimeout(function () {
+      parsePasteClick();
+      scrollComposer();
+      // show table in view via composer
+
+    }, 3200);
+  }
+
+
+  /** Local-only capture helper: ?demo=video2[&step=base|typing|added|partial|confirmed][&hl=add|row|confirms|print]
+   *  Continues lemon drizzle / Northgate Bakery from video1 (paste ingredients already on the form).
+   *  Manual add: 10g icing sugar (no new major allergen — confirms stay Wheat/Milk/Eggs + Lemon ack).
+   *  step=base      paste ingredients present; ready to add by hand
+   *  step=typing    blank row opened; icing sugar / 10 partially filled
+   *  step=added     icing sugar fully on the table + label
+   *  step=partial   Wheat + Milk confirmed; Eggs + Lemon still open
+   *  step=confirmed all confirms/acks checked; print unlocked
+   *  hl=add         soft amber on Add ingredient button
+   *  hl=row         soft amber on last ingredient row (+ Add button)
+   *  hl=confirms    soft amber on unchecked confirm boxes (or all if none unchecked)
+   *  hl=print       soft amber on enabled Print button; full compact framing
+   */
+  var VIDEO2_EXTRA = { name: "icing sugar", grams: "10" };
+
+  function applyVideo2CaptureChrome() {
+    applyVideo1CaptureChrome();
+    document.documentElement.classList.add("video2-capture");
+    var style = document.getElementById("video2-capture-style");
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "video2-capture-style";
+      style.textContent = [
+        "html.video2-capture.video1-full #paste-box,",
+        "html.video2-capture.video1-full .field:has(#paste-box),",
+        "html.video2-capture.video1-full #load-sample,",
+        "html.video2-capture.video1-full #may-contain,",
+        "html.video2-capture.video1-full .field:has(#may-contain),",
+        "html.video2-capture.video1-full .grid-3,",
+        "html.video2-capture.video1-full .field-narrow { display:none !important; }",
+        "html.video2-capture.video1-full .ing-row { gap: 4px; }",
+        "html.video2-capture.video1-full .ing-name { font-size: 13px; padding: 6px 8px; }",
+        "html.video2-capture.video1-full .grams input { font-size: 13px; padding: 6px 6px; }",
+        "html.video2-capture.video1-full #add-ing { margin-top: 4px; }",
+        "html.video2-capture #add-ing.video1-hl,",
+        "html.video2-capture .ing-row.video1-hl,",
+        "html.video2-capture #print-btn.video1-hl {",
+        "  outline: 3px solid rgba(196,146,74,.88);",
+        "  outline-offset: 5px;",
+        "  border-radius: 10px;",
+        "  box-shadow: 0 0 0 8px rgba(244,231,196,.72), 0 8px 20px rgba(196,146,74,.22);",
+        "  position: relative;",
+        "  z-index: 2;",
+        "}",
+        "html.video2-capture #print-btn.video1-hl:not([disabled]) {",
+        "  outline-color: rgba(196,146,74,.95);",
+        "  box-shadow: 0 0 0 10px rgba(244,231,196,.78), 0 10px 28px rgba(196,146,74,.28);",
+        "}"
+      ].join("\n");
+      document.head.appendChild(style);
+    }
+  }
+
+  function loadVideo2BaseIngredients() {
+    els.pasteBox.value = VIDEO1_RECIPE;
+    parsePasteClick();
+    applyVideo1Names();
+  }
+
+  function applyVideo2Highlights(hl) {
+    if (!hl) return;
+    var mode = String(hl).toLowerCase();
+    document.documentElement.classList.add("video1-full");
+    if (mode === "add") {
+      var addBtn = $("add-ing");
+      if (addBtn) addBtn.classList.add("video1-hl");
+      return;
+    }
+    if (mode === "row") {
+      var rows = els.ingTable.querySelectorAll(".ing-row");
+      if (rows.length) rows[rows.length - 1].classList.add("video1-hl");
+      var addBtn2 = $("add-ing");
+      if (addBtn2) addBtn2.classList.add("video1-hl");
+      return;
+    }
+    if (mode === "confirms" || mode === "confirm") {
+      var unchecked = [];
+      document.querySelectorAll("#confirm-list .confirm-item").forEach(function (el) {
+        var input = el.querySelector("input");
+        if (input && !input.disabled && !input.checked) unchecked.push(el);
+      });
+      var targets = unchecked.length ? unchecked : document.querySelectorAll("#confirm-list .confirm-item");
+      targets.forEach(function (el) { el.classList.add("video1-hl"); });
+      return;
+    }
+    if (mode === "print") {
+      var printBtn = $("print-btn");
+      if (printBtn) printBtn.classList.add("video1-hl");
+      document.querySelectorAll("#confirm-list .confirm-item").forEach(function (el) {
+        el.classList.add("video1-hl");
+      });
+      return;
+    }
+    applyVideo1Highlights(hl);
+  }
+
+  function setConfirmIds(ids) {
+    state.confirmed = {};
+    (ids || []).forEach(function (id) { state.confirmed[id] = true; });
+  }
+
+  function runVideo2Demo(step, hl) {
+    applyVideo2CaptureChrome();
+    clearForDemo();
+    applyVideo1Names();
+    loadVideo2BaseIngredients();
+    renderAll();
+    window.scrollTo(0, 0);
+    scrollComposer();
+
+    if (step === "base") {
+      document.documentElement.classList.add("video1-full");
+      renderAll();
+      scrollComposer();
+      applyVideo2Highlights(hl || "add");
+      return;
+    }
+
+    if (step === "typing") {
+      collectFromRows();
+      state.ingredients.push({ id: uid(), name: "icing sugar", grams: "" });
+      renderIngredients();
+      document.documentElement.classList.add("video1-full");
+      renderAll();
+      scrollComposer();
+      applyVideo2Highlights(hl || "row");
+      return;
+    }
+
+    if (step === "added") {
+      collectFromRows();
+      state.ingredients.push({ id: uid(), name: VIDEO2_EXTRA.name, grams: VIDEO2_EXTRA.grams });
+      state.confirmed = {};
+      state.acknowledged = {};
+      renderIngredients();
+      document.documentElement.classList.add("video1-full");
+      renderAll();
+      scrollComposer();
+      applyVideo2Highlights(hl || "row");
+      return;
+    }
+
+    if (step === "partial") {
+      collectFromRows();
+      state.ingredients.push({ id: uid(), name: VIDEO2_EXTRA.name, grams: VIDEO2_EXTRA.grams });
+      renderIngredients();
+      setConfirmIds(["wheat", "milk"]);
+      state.acknowledged = {};
+      document.documentElement.classList.add("video1-full");
+      renderAll();
+      // Re-apply after confirm list rebuild
+      setConfirmIds(["wheat", "milk"]);
+      state.acknowledged = {};
+      renderAll();
+      window.scrollTo(0, 0);
+      scrollComposer();
+      applyVideo2Highlights(hl || "confirms");
+      return;
+    }
+
+    if (step === "confirmed") {
+      collectFromRows();
+      state.ingredients.push({ id: uid(), name: VIDEO2_EXTRA.name, grams: VIDEO2_EXTRA.grams });
+      renderIngredients();
+      document.documentElement.classList.add("video1-full");
+      renderAll();
+      confirmAllForDemo();
+      window.scrollTo(0, 0);
+      scrollComposer();
+      applyVideo2Highlights(hl || "print");
+      return;
+    }
+
+    // default: added state
+    collectFromRows();
+    state.ingredients.push({ id: uid(), name: VIDEO2_EXTRA.name, grams: VIDEO2_EXTRA.grams });
+    renderIngredients();
+    document.documentElement.classList.add("video1-full");
+    renderAll();
+    applyVideo2Highlights(hl);
+  }
+
   function init() {
     bind();
     renderReference();
     document.body.setAttribute("data-print", "a6");
+    var params = new URLSearchParams(location.search);
+    var demoParam = params.get("demo");
+    if (demoParam === "video1" || demoParam === "video2") {
+      try { sessionStorage.removeItem("label14.draft.v1"); } catch (e) {}
+      state.ingredients = [blankIng(), blankIng(), blankIng()];
+      els.packDate.value = todayISO();
+      renderIngredients();
+      renderSaved();
+      renderAll();
+      var stepNow = params.get("step") || "";
+      var hlNow = params.get("hl") || "";
+      if (demoParam === "video2") {
+        if (stepNow) {
+          runVideo2Demo(stepNow, hlNow);
+        } else {
+          setTimeout(function () { runVideo2Demo(stepNow, hlNow); }, 200);
+        }
+        return;
+      }
+      if (stepNow) {
+        runVideo1Demo(stepNow, hlNow);
+      } else {
+        setTimeout(function () { runVideo1Demo(stepNow, hlNow); }, 200);
+      }
+      return;
+    }
+    var demo = /(?:\?|&)demo=1(?:&|$)/.test(location.search);
+    if (demo) {
+      try { sessionStorage.removeItem("label14.draft.v1"); } catch (e) {}
+      state.ingredients = [blankIng(), blankIng(), blankIng()];
+      els.packDate.value = todayISO();
+      renderIngredients();
+      renderSaved();
+      renderAll();
+      setTimeout(runListingDemo, 600);
+      return;
+    }
     if (!restoreDraft()) {
       state.ingredients = [blankIng(), blankIng(), blankIng()];
       els.packDate.value = todayISO();
