@@ -601,6 +601,40 @@
     els.lifeLabel.textContent = els.lifeType.value === "best-before" ? "Best before" : "Use by";
   }
 
+
+  function loadSampleMealPrep() {
+    applySnapshot({
+      id: state.editingId || uid(),
+      productName: "Chicken mayo meal-prep pot",
+      businessName: "Packed on site kitchen",
+      ingredients: [
+        { name: "Cooked chicken breast", grams: 180 },
+        { name: "Cooked basmati rice", grams: 160 },
+        { name: "Mayonnaise", grams: 40 },
+        { name: "Greek yoghurt", grams: 30 },
+        { name: "Celery", grams: 25 },
+        { name: "Spring onion", grams: 15 },
+        { name: "Lemon juice", grams: 10 },
+        { name: "Black pepper", grams: 2 },
+      ],
+      mayContain: "",
+      packDate: todayISO(),
+      lifeType: "use-by",
+      lifeDate: "",
+      batch: "",
+    });
+    els.pasteBox.value = [
+      "180g cooked chicken breast",
+      "160g cooked basmati rice",
+      "40g mayonnaise",
+      "30g Greek yoghurt",
+      "25g celery",
+      "15g spring onion",
+      "10g lemon juice",
+      "2g black pepper",
+    ].join("\n");
+  }
+
   function loadSample() {
     applySnapshot({
       id: state.editingId || uid(),
@@ -681,6 +715,7 @@
     });
 
     $("load-sample").addEventListener("click", loadSample);
+    $("load-sample-mealprep").addEventListener("click", loadSampleMealPrep);
 
     if (els.copyListingBtn) {
       els.copyListingBtn.addEventListener("click", copyListingIngredients);
@@ -1049,6 +1084,7 @@
         "html.video2-capture.video1-full #paste-box,",
         "html.video2-capture.video1-full .field:has(#paste-box),",
         "html.video2-capture.video1-full #load-sample,",
+        "html.video2-capture.video1-full #load-sample-mealprep,",
         "html.video2-capture.video1-full #may-contain,",
         "html.video2-capture.video1-full .field:has(#may-contain),",
         "html.video2-capture.video1-full .grid-3,",
